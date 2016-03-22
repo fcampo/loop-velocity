@@ -314,18 +314,18 @@ const RELEASES = [
     type: "FF",
     name: "40.1",
     start: "13/04/2015",
-    end: "27/04/2013"
+    end: "27/04/2015"
   },
   {
     type: "FF",
     name: "40.2",
-    start: "27/04/2013",
-    end: "11/05/2013"
+    start: "27/04/2015",
+    end: "11/05/2015"
   },
   {
     type: "FF",
     name: "40.3",
-    start: "11/05/2013",
+    start: "11/05/2015",
     end: "25/05/2015"
   },
   {
@@ -505,123 +505,20 @@ function printData(origin, data) {
                      '(' + origin.start + ' - ' + origin.end + ')';
   newRelease.appendChild(name);
 
-  let total = document.createElement('h3');
-  total.textContent = data.total + ' bugs in total';
-  newRelease.appendChild(total);
+  let assigned = document.createElement('h3');
+  assigned.textContent = data[0].done.length + ' assigned' +
+                         ' (+ ' + data[0].metas.length + ' metas)';
+  newRelease.appendChild(assigned);
 
-  let meta = document.createElement('h3');
-  meta.textContent = 'including ' + data.metas.length + ' [Meta] bugs';
-  newRelease.appendChild(meta);
+  let solved = document.createElement('h3');
+  solved.textContent = data[1].done.length + ' solved' +
+                       ' (+ ' + data[1].metas.length + ' metas)';
+  newRelease.appendChild(solved);
 
-  let commited = document.createElement('h3');
-  commited.textContent = 'From ' + data.taken.length + ' commited';
-  newRelease.appendChild(commited);
-
-  let fixed = document.createElement('h3');
-  fixed.textContent = data.fixed.length + ' were solved';
-  newRelease.appendChild(fixed);
+  let fullyDone = document.createElement('h3');
+  fullyDone.textContent = data[2].done.length + ' both assigned and solved' +
+                          ' (+ ' + data[2].metas.length + ' metas)';
+  newRelease.appendChild(fullyDone);
 
   UI.results.appendChild(newRelease);
-
-  console.log('RELEASE - ' + origin.name);
-  console.log('total - ' + data.total);
-  console.log('[meta] - ' + data.metas.length);
-  console.log('commited - ' + data.taken.length);
-  console.log('solved - ' + data.fixed.length);
-  console.log();
 }
-
-// ------------------------
-  // for (let rel in RELEASES) {
-  //   // show spinner
-
-  //   // query
-  //   Bugziller.getRelease(RELEASES[rel])
-  //   // paint results
-  //   .then(fullList => {
-  //     if (!fullList) {
-  //       return;
-  //     }
-  //     var totalBugs = fullList.length;
-  //     fullList.forEach(bug => {
-  //       if (Bugziller.isMeta(bug)) {
-  //         metaBugs.push(bug);
-  //       } else {
-  //         // counted for resolution
-  //         commitedBugs.push(bug);
-
-  //         if (Bugziller.isClosed(bug)) {
-  //           closedBugs.push(bug);
-  //         }
-  //       }
-  //     });
-  //     // fill data
-  //     let newRelease = document.createElement('li');
-  //     let name = document.createElement('h2');
-  //     name.textContent = 'v' + rel + ' | ' +
-  //                        '(' + rel.start + ' - ' + rel.end + ')';
-  //     newRelease.appendChild(name);
-
-  //     let total = document.createElement('h3');
-  //     total.textContent = totalBugs + ' bugs in total';
-  //     newRelease.appendChild(total);
-
-  //     let meta = document.createElement('h3');
-  //     meta.textContent = 'including ' + metaBugs.length + ' [Meta] bugs';
-  //     newRelease.appendChild(meta);
-
-  //     let commited = document.createElement('h3');
-  //     commited.textContent = 'From ' + commitedBugs.length + ' commited';
-  //     newRelease.appendChild(commited);
-
-  //     let fixed = document.createElement('h3');
-  //     fixed.textContent = closedBugs.length + ' were solved';
-  //     newRelease.appendChild(fixed);
-
-  //     UI.results.appendChild(newRelease);
-
-  //     console.log('RELEASE - ' + rel);
-  //     console.log('total - ' + totalBugs);
-  //     console.log('[meta] - ' + metaBugs.length);
-  //     console.log('commited - ' + commitedBugs.length);
-  //     console.log('solved - ' + closedBugs.length);
-  //     console.log();
-
-  //     return Promise.resolve();
-  //   });
-  // }
-  //   // show it
-  //   UI.loading.classList.add('nope');
-  // ------------------------
-  // Bugziller.getAll(1248602).then(fullList => {
-  //   var total = fullList.length;
-  //   fullList.forEach(bug => {
-  //     if (Bugziller.isMeta(bug)) {
-  //       metaBugs.push(bug);
-  //     } else {
-  //       // counted for resolution
-  //       commitedBugs.push(bug);
-
-  //       if (Bugziller.isClosed(bug)) {
-  //         closedBugs.push(bug);
-  //       }
-  //     }
-  //   });
-  //   // fill data
-  //   UI.totalBugs.textContent = total;
-  //   UI.metaBugs.textContent = metaBugs.length;
-  //   UI.assignedBugs.textContent = commitedBugs.length;
-  //   UI.fixedBugs.textContent = closedBugs.length;
-
-  //   // show it
-  //   UI.results.classList.remove('nope');
-  //   UI.loading.classList.add('nope');
-
-  //   console.log('total - ' + total);
-  //   console.log('[meta] - ' + metaBugs.length);
-  //   console.log('commited - ' + commitedBugs.length);
-  //   console.log('solved - ' + closedBugs.length);
-  // });
-
-// META   1248602
-// NON-F  1248604
