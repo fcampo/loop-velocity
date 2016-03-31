@@ -38,14 +38,19 @@ var Bugziller = (function(namespace) {
     return metaReg.test(bug.summary);
   }
 
-  // checks if a bug is closed, independently of the reason for it
-  // (resolution != "")
+  //checks if a bug is closed, independently of the reason for it
   function isClosed(bug) {
     return !!bug.resolution;
   }
 
-  // get basic info from bug(s)
-  // bug details, immediate dependencies
+  // checks if a bug is fixed
+  function isFixed(bug) {
+    return bug.resolution === "FIXED";
+  }
+  /*
+   * get basic info from bug(s)
+   * bug details, immediate dependencies
+   */
   function getBug(bugArray) {
     let bugList = bugArray.join(',');
     let query = QUERY_URL + options + "&id=" + bugList;
@@ -67,8 +72,10 @@ var Bugziller = (function(namespace) {
     });
   }
 
-  // get all the existing dependencies of a specific bugs
-  // includes CLOSED bugs
+  /**
+   * get all the existing dependencies of a specific bugs
+   * includes CLOSED bugs
+   */
   function getDependencies(bugList) {
     return bugList.reduce((p,c) => {
       return p.then(partial => {
@@ -79,8 +86,10 @@ var Bugziller = (function(namespace) {
     }, Promise.resolve([]));
   }
 
-  // get everything related to a bug
-  // details, dependencies, and subdependencies
+  /**
+   * get everything related to a bug
+   * details, dependencies, and subdependencies
+   */
   function getAll(bugArray) {
     var list = [];
     // convert to Array just in case
@@ -99,15 +108,17 @@ var Bugziller = (function(namespace) {
     });
   }
 
-  // get all data for a specific release based on the dates of it
-  // commited:  all bugs that were assigned to someone during the release.
-  //            They may or may not have been solved on time.
-  // solved:    all bugs that were solved during the release.
-  //            Could have been assigned on previous release though
-  // complete:  100% on time. bugs that were assigned AND solved during the release
-  // @param start   Date starting date for the release query
-  // @param end     Date ending date for the release query
-  // @param bugList [optional] limit the search to a series of bugs
+  /**
+   * get all data for a specific release based on the dates of it
+   * commited:  all bugs that were assigned to someone during the release.
+   *            They may or may not have been solved on time.
+   * solved:    all bugs that were solved during the release.
+   *            Could have been assigned on previous release though
+   * complete:  100% on time. bugs that were assigned AND solved during the release
+   * @param start   Date starting date for the release query
+   * @param end     Date ending date for the release query
+   * @param bugList [optional] limit the search to a series of bugs
+   */
   function getAllFromDates(start, end, bugList) {
     let baseQuery = QUERY_URL + options +
                     (!!bugList ? "&id=" + bugList.join(',') : "");
@@ -123,7 +134,7 @@ var Bugziller = (function(namespace) {
                   "&v1=" + dateIni +
                   "&f2=resolution" +
                   "&o2=changedbefore" +
-                  "&v2=" + dateEnd+
+                  "&v2=" + dateEnd +
                   "&f3=resolution" +
                   "&o3=changedto" +
                   "&v3=fixed";
@@ -186,257 +197,129 @@ var Bugziller = (function(namespace) {
     return getAllFromDates(release.start, release.end);
   }
 
+  function getSprintVelocity() {
+    // sprint size is 2 weeks, and we start counting on FF34
+    var START = "05/08/2014";
+    var dFormat = "YYYY-MM-DD";
+
+    let sprintArray = [];
+    let date = moment(START, "DD-MM-YYYY");
+    // limit on today's last sunday
+    while (date.isBefore(moment().weekday(0))) {
+      sprintArray.push({
+        start: date.weekday(1).format(dFormat),// monday same week
+        end: date.weekday(15).format(dFormat)  // monday 2 weeks after
+      });
+    }
+    var resultArray = [];
+    var i=0;
+    return sprintArray.map(sprint => {
+      return querySolved(sprint.start, sprint.end)
+             .then(solvedArray => {
+              resultArray.push(solvedArray.length);
+              return solvedArray.length
+            });
+    }).reduce((sequence, result) => {
+      return sequence.then(function() {
+        return result;
+      }).then(result => {
+        barChart.addData([result], sprintArray[i++].end);
+      });
+    }, Promise.resolve())
+    .then(() => resultArray);
+  }
+
+  function querySolved(start, end) {
+    let query = QUERY_URL + options +
+                "&f1=resolution" +
+                "&o1=changedafter" +
+                "&v1=" + start +
+                "&f2=resolution" +
+                "&o2=changedbefore" +
+                "&v2=" + end +
+                "&f3=resolution" +
+                "&o3=changedto" +
+                "&v3=fixed";
+
+    return fetch(query)
+            .then(response => response.json())
+            .then(json => json.bugs);
+  }
+
   return {
     getRelease: getReleaseData,
     getAll: getAll,
     getOne: getBug,
     isMeta: isMeta,
-    isClosed: isClosed
+    isClosed: isClosed,
+    getVelocity: getSprintVelocity
   };
 
 })(window);
 
 var UI = {
   results: document.getElementById('results'),
-  loading: document.getElementById('loading')
+  loading: document.getElementById('loading'),
+  velocity: document.querySelector('.velocity'),
+  deviation: document.querySelector('.deviation')
 };
 
-const RELEASES = [
-  {
-    type: "FF",
-    name: "34.1",
-    start: "05/08/2014",
-    end: "19/08/2014"
-  },
-  {
-    type: "FF",
-    name: "34.2",
-    start: "19/08/2014",
-    end: "02/09/2014"
-  },
-  {
-    type: "FF",
-    name: "34.3",
-    start: "02/09/2014",
-    end: "16/09/2014"
-  },
-  {
-    type: "FF",
-    name: "35.1",
-    start: "16/09/2014",
-    end: "30/09/2014"
-  },
-  {
-    type: "FF",
-    name: "35.2",
-    start: "30/09/2014",
-    end: "14/10/2014"
-  },
-  {
-    type: "FF",
-    name: "35.3",
-    start: "14/10/2014",
-    end: "28/10/2014"
-  },
-  {
-    type: "FF",
-    name: "36.1",
-    start: "28/10/2014",
-    end: "11/11/2014"
-  },
-  {
-    type: "FF",
-    name: "36.2",
-    start: "11/11/2014",
-    end: "09/12/2014"
-  },
-  {
-    type: "FF",
-    name: "36.3",
-    start: "09/12/2014",
-    end: "22/12/2014"
-  },
-  {
-    type: "FF",
-    name: "37.1",
-    start: "22/12/2014",
-    end: "05/01/2015"
-  },
-  {
-    type: "FF",
-    name: "37.2",
-    start: "05/01/2015",
-    end: "13/01/2015"
-  },
-  {
-    type: "FF",
-    name: "37.3",
-    start: "13/01/2015",
-    end: "26/01/2015"
-  },
-  {
-    type: "FF",
-    name: "38.1",
-    start: "26/01/2015",
-    end: "09/02/2015"
-  },
-  {
-    type: "FF",
-    name: "38.2",
-    start: "09/02/2015",
-    end: "23/02/2015"
-  },
-  {
-    type: "FF",
-    name: "38.3",
-    start: "23/02/2015",
-    end: "09/03/2015"
-  },
-  {
-    type: "FF",
-    name: "39.1",
-    start: "09/03/2015",
-    end: "23/03/2015"
-  },
-  {
-    type: "FF",
-    name: "39.2",
-    start: "23/03/2015",
-    end: "30/03/2015"
-  },
-  {
-    type: "FF",
-    name: "39.3",
-    start: "30/03/2015",
-    end: "13/04/2015"
-  },
-  {
-    type: "FF",
-    name: "40.1",
-    start: "13/04/2015",
-    end: "27/04/2015"
-  },
-  {
-    type: "FF",
-    name: "40.2",
-    start: "27/04/2015",
-    end: "11/05/2015"
-  },
-  {
-    type: "FF",
-    name: "40.3",
-    start: "11/05/2015",
-    end: "25/05/2015"
-  },
-  {
-    type: "FF",
-    name: "41.1",
-    start: "25/05/2015",
-    end: "08/06/2015"
-  },
-  {
-    type: "FF",
-    name: "41.2",
-    start: "08/06/2015",
-    end: "29/06/2015"
-  },
-  {
-    type: "FF",
-    name: "41.3",
-    start: "29/06/2015",
-    end: "13/07/2015"
-  },
-  {
-    type: "FF",
-    name: "42.1",
-    start: "13/07/2015",
-    end: "27/07/2015"
-  },
-  {
-    type: "FF",
-    name: "42.2",
-    start: "27/07/2015",
-    end: "10/08/2015"
-  },
-  {
-    type: "FF",
-    name: "42.3",
-    start: "10/08/2015",
-    end: "24/08/2015"
-  },
-  {
-    type: "FF",
-    name: "43.1",
-    start: "24/08/2015",
-    end: "07/09/2015"
-  },
-  {
-    type: "FF",
-    name: "43.2",
-    start: "07/09/2015",
-    end: "21/09/2015"
-  },
-  {
-    type: "FF",
-    name: "43.3",
-    start: "21/09/2015",
-    end: "05/10/2015"
-  },
-  {
-    type: "FF",
-    name: "44.1",
-    start: "05/10/2015",
-    end: "19/10/2015"
-  },
-  {
-    type: "FF",
-    name: "44.2",
-    start: "19/10/2015",
-    end: "02/11/2015"
-  },
-  {
-    type: "FF",
-    name: "44.3",
-    start: "02/11/2015",
-    end: "16/11/2015"
-  },
-  {
-    type: "ADDON",
-    name:  "1.0",
-    start: "16/11/2015",
-    end: "14/12/2015"
-  },
-  {
-    type: "ADDON",
-    name:  "1.1",
-    start: "18/12/2015",
-    end: "25/01/2016"
-  },
-  {
-    type: "ADDON",
-    name:  "1.2",
-    start: "25/01/2016",
-    end: "---",
-    bug: "1248602"
-  }
-];
 
-RELEASES.reduce((sequence, release) => {
-  // console.log('...inside reduce');
-  // console.log(release);
-  return sequence.then(() => {
-    // console.log('...inside sequence.then');
-    return Bugziller.getRelease(release);
-  }).then(fullBugList => {
-    // console.log('bugList = ' + JSON.stringify(bugList));
-    return filterBugs(fullBugList);
-  }).then(classifiedLists => {
-    console.log('filtered = ' + JSON.stringify(classifiedLists));
-    return printData(release, classifiedLists);
-  });
-}, Promise.resolve())
-.catch((error) => console.error('something went WRONG ' + error))
-.then(() => UI.loading.classList.add('nope'));
+// Get the context of the canvas element we want to select
+var dataBar = {
+  labels: [],
+  datasets: [{
+    fillColor: "rgba(50,150,200,0.7)",
+    data: []
+  }]
+};
+var ctx = document.getElementById("graph").getContext("2d");
+var barChart = new Chart(ctx).Bar(dataBar, {
+  maintainAspectRatio: true,
+  responsive: true,
+  barValueSpacing: 0.5,
+  animationSteps: 15
+});
+
+
+Bugziller.getVelocity()
+.then(resultArray => updateVelocity(resultArray))
+.catch((error) => console.error('OH NO! => ' + error))
+.then(() => { // update UI to show results and hide loading icon
+  UI.results.classList.remove('nope');
+  UI.loading.classList.add('nope');
+});
+
+function updateVelocity(dataArray) {
+  // For the velocity we can show the average of the values
+  let avg = average(dataArray);
+  // But we'll also need to calculate the standard deviation
+  let stdDev = stdDeviation(dataArray);
+
+  // Now we can show the values
+  UI.velocity.textContent = parseFloat(avg).toFixed(0);
+  UI.deviation.textContent = "± " + parseFloat(stdDev).toFixed(0);
+}
+
+// just calculate the average of the values passed as an array
+function average(data) {
+  var sum = data.reduce((sum, value) => sum + value, 0);
+  return sum / data.length;;
+}
+
+// The Standard Deviation is calculated...
+//  "by taking the square root of the average of the squared differences
+//   of the values from their average value"
+function stdDeviation(pureData) {
+  // first calculate the average of the pure data
+  var avg = average(pureData);
+  // now the squared diffs
+  var squareDiffs = pureData.map(value => (value - avg) * (value - avg));
+  // then the squared average
+  var avgSquareDiff = average(squareDiffs);
+  // and finally calculate the deviation
+  return Math.sqrt(avgSquareDiff);
+}
 
 /**
  * Cleans the bug lists from not desired values.
@@ -522,3 +405,130 @@ function printData(origin, data) {
 
   UI.results.appendChild(newRelease);
 }
+
+// TODO: cambiar releases por 2-week plannings
+  //  necesitamos saber el bug-per-sprint velocity
+  //  después de eso, dividir en releases si necesario.
+  // FF34  Development 05/08/2014 — 16/09/2014
+  // FF35  Development 16/09/2014 — 28/10/2014
+  // FF36  Development 28/10/2014 — 22/12/2014
+  // FF37  Development 22/12/2014 — 26/01/2015
+  // FF38  Development 26/01/2015 — 09/03/2015
+  // FF39  Development 09/03/2015 — 13/04/2015
+  // FF40  Development 13/04/2015 — 25/05/2015
+  // FF41  Development 25/05/2015 — 13/07/2015
+  // FF42  Development 13/07/2015 — 24/08/2015
+  // FF43  Development 24/08/2015 — 05/10/2015
+  // FF44  Development 05/10/2015 — 16/11/2015
+  // v1.0  Development 12/10/2015 — 08/12/2015
+  // v1.1  Development 04/01/2016 — 01/03/2016
+  // v1.2  Development 15/02/2016 — 22/03/2016
+  // v1.3  Development 21/03/2016 — 01/04/2016
+  // vCOD  Development 23/03/2016 — 02/05/2016
+
+// RELEASE BASED CALCULATIONS
+  // const RELEASES = [
+  //   {
+  //     type: "FF",
+  //     name: "34",
+  //     start: "05/08/2014",
+  //     end: "16/09/2014"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "35",
+  //     start: "16/09/2014",
+  //     end: "28/10/2014"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "36",
+  //     start: "28/10/2014",
+  //     end: "22/12/2014"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "37",
+  //     start: "22/12/2014",
+  //     end: "26/01/2015"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "38",
+  //     start: "26/01/2015",
+  //     end: "09/03/2015"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "39",
+  //     start: "09/03/2015",
+  //     end: "13/04/2015"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "40",
+  //     start: "13/04/2015",
+  //     end: "25/05/2015"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "41",
+  //     start: "25/05/2015",
+  //     end: "13/07/2015"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "42",
+  //     start: "13/07/2015",
+  //     end: "24/08/2015"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "43",
+  //     start: "24/08/2015",
+  //     end: "05/10/2015"
+  //   },
+  //   {
+  //     type: "FF",
+  //     name: "44",
+  //     start: "05/10/2015",
+  //     end: "16/11/2015"
+  //   },
+  //   {
+  //     type: "ADDON",
+  //     name:  "1.0",
+  //     start: "16/11/2015",
+  //     end: "14/12/2015"
+  //   },
+  //   {
+  //     type: "ADDON",
+  //     name:  "1.1",
+  //     start: "18/12/2015",
+  //     end: "25/01/2016"
+  //   },
+  //   {
+  //     type: "ADDON",
+  //     name:  "1.2",
+  //     start: "25/01/2016",
+  //     end: "---",
+  //     bug: "1248602"
+  //   }
+  // ];
+
+  // RELEASES.reduce((sequence, release) => {
+  //   // console.log('...inside reduce');
+  //   // console.log(release);
+  //   return sequence.then(() => {
+  //     // console.log('...inside sequence.then');
+  //     return Bugziller.getRelease(release);
+  //   }).then(fullBugList => {
+  //     // console.log('bugList = ' + JSON.stringify(bugList));
+  //     return filterBugs(fullBugList);
+  //   }).then(classifiedLists => {
+  //     console.log('filtered = ' + JSON.stringify(classifiedLists));
+  //     return printData(release, classifiedLists);
+  //   });
+  // }, Promise.resolve())
+  // .catch((error) => console.error('something went WRONG ' + error))
+  // .then(() => UI.loading.classList.add('nope'));
+

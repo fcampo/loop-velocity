@@ -6,13 +6,29 @@
   <!-- Style -->
   <link rel="stylesheet" type="text/css" href="style.css">
   <!-- Scripts -->
-  <script defer src="libs/date.js"></script>
+  <script defer src="libs/moment.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.min.js"></script>
   <script defer src="everything.js"></script>
 </head>
 <body>
-  <h1>Loop Velocity</h1>
-  <ul id="results">
+  <header>
+    <h1 id="title">Loop Velocity</h1>
+    <div id="loading" class="title-companion">
+      <div class="circle"></div>
+      <div class="circle1"></div>
+    </div>
+    <h1 id="results" class="title-companion nope">
+      <span class="velocity"></span>
+      <span class="deviation"></span>
+    </h1>
+  </header>
+  <div class="graph-container">
+    <canvas id="graph"></canvas>
+  </div>
+
+  <!-- <ul id="results">
   </ul>
-  <img id="loading" src="http://www.dayonepatch.com/uploads/profile/photo-1082.gif">
+  <img id="loading" src="http://www.dayonepatch.com/uploads/profile/photo-1082.gif"> -->
+
 </body>
 </html>
