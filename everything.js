@@ -199,7 +199,7 @@ var Bugziller = (function(namespace) {
 
   function getSprintVelocity() {
     // sprint size is 2 weeks, and we start counting on FF34
-    var START = "05/08/2014";
+    var START = "01/07/2015";
     var dFormat = "YYYY-MM-DD";
 
     let sprintArray = [];
@@ -212,13 +212,16 @@ var Bugziller = (function(namespace) {
       });
     }
     var resultArray = [];
+    var fullResponse = [];
     var i=0;
+
     return sprintArray.map(sprint => {
       return querySolved(sprint.start, sprint.end)
              .then(solvedArray => {
-              resultArray.push(solvedArray.length);
-              return solvedArray.length
-            });
+                fullResponse.push(solvedArray);
+                resultArray.push(solvedArray.length);
+                return solvedArray.length
+              });
     }).reduce((sequence, result) => {
       return sequence.then(function() {
         return result;
@@ -226,9 +229,14 @@ var Bugziller = (function(namespace) {
         barChart.addData([result], sprintArray[i++].end);
       });
     }, Promise.resolve())
+    .then(() => {
+      console.log("> R = " + JSON.stringify(fullResponse));
+      console.log("> Q = " + JSON.stringify(queries));
+    })
     .then(() => resultArray);
   }
 
+  var queries = [];
   function querySolved(start, end) {
     let query = QUERY_URL + options +
                 "&f1=resolution" +
@@ -240,7 +248,7 @@ var Bugziller = (function(namespace) {
                 "&f3=resolution" +
                 "&o3=changedto" +
                 "&v3=fixed";
-
+    queries.push(query);
     return fetch(query)
             .then(response => response.json())
             .then(json => json.bugs);
